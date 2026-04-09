@@ -257,44 +257,6 @@
       overscroll-behavior: none;
     }
 
-    /* ===== Install Hint Banner ===== */
-    .install-hint {
-      display: none;
-      width: 100%;
-      background-color: #d5f5e3;
-      color: #1a5226;
-      text-align: center;
-      padding: 14px 48px 14px 20px;
-      font-size: 1.05rem;
-      font-weight: 600;
-      line-height: 1.4;
-      border-bottom: 2px solid #82e0aa;
-      position: relative;
-    }
-
-    .install-hint.visible {
-      display: block;
-    }
-
-    .install-hint-close {
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: none;
-      border: 2px solid #1a5226;
-      border-radius: 8px;
-      color: #1a5226;
-      font-size: 1.3rem;
-      font-weight: 800;
-      width: 36px;
-      height: 36px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      line-height: 1;
-    }
 
     /* ===== iPad / Tablet Layout ===== */
     @media (min-width: 768px) {
@@ -342,10 +304,6 @@
         border-radius: 20px;
       }
 
-      .install-hint {
-        font-size: 1.2rem;
-        padding: 18px 56px 18px 24px;
-      }
 
       .error-banner {
         font-size: 1.2rem;
@@ -360,10 +318,6 @@
     <p>Pulsa una emisora para escuchar</p>
   </header>
 
-  <div id="install-hint" class="install-hint" role="note">
-    Para usar como app: pulsa <strong>Compartir</strong> y luego <strong>"Añadir a pantalla de inicio"</strong>
-    <button class="install-hint-close" id="install-hint-close" aria-label="Cerrar aviso" type="button">&times;</button>
-  </div>
 
   <div id="error-banner" class="error-banner" role="alert" aria-live="polite"></div>
 
@@ -432,6 +386,7 @@
     // ===== Audio Event Listeners (attached once) =====
     audio.addEventListener("playing", function () {
       if (currentIndex < 0) return;
+      // Backup UI updater just in case standard playback triggers it normally
       var btn = buttons[currentIndex];
       btn.classList.remove("loading");
       btn.classList.add("playing");
@@ -442,9 +397,8 @@
     audio.addEventListener("timeupdate", function () {
       if (currentIndex < 0) return;
       var btn = buttons[currentIndex];
-      // If the audio time is advancing, it is definitely playing.
-      // This catches edge cases where the browser forgets to fire 'playing'.
-      if (btn.classList.contains("loading") && !audio.paused && audio.currentTime > 0) {
+      // Fallback for native streams
+      if (btn.classList.contains("loading") && !audio.paused && audio.currentTime > 0.5) {
         btn.classList.remove("loading");
         btn.classList.add("playing");
         btn.querySelector(".status-text").textContent = "Reproduciendo...";
@@ -474,15 +428,19 @@
       // Clear previous errors
       hideError();
 
-      // Update button states
+      // Update button states — go straight to "playing" for instant feedback
       resetAllButtons();
       var btn = buttons[index];
-      btn.classList.add("loading");
-      btn.querySelector(".status-text").textContent = "Cargando...";
+      btn.classList.add("playing");
+      btn.querySelector(".status-text").textContent = "Reproduciendo...";
 
       // Enable the stop button
       stopBtn.classList.remove("disabled");
       stopBtn.disabled = false;
+
+      // Set current index immediately
+      currentIndex = index;
+      updateMediaSession(STATIONS[index].name);
 
       // Helper function to handle playback errors
       function handlePlayError(err) {
@@ -620,29 +578,8 @@
       }
     }
 
-    // ===== Install Hint (show only in Safari, not in standalone PWA) =====
-    function initInstallHint() {
-      var isStandalone = window.navigator.standalone === true ||
-                         window.matchMedia("(display-mode: standalone)").matches;
-      var isDismissed = false;
-      try { isDismissed = localStorage.getItem("install-hint-dismissed") === "1"; } catch (e) {}
-
-      var hint = document.getElementById("install-hint");
-      var closeBtn = document.getElementById("install-hint-close");
-
-      if (!isStandalone && !isDismissed) {
-        hint.classList.add("visible");
-      }
-
-      closeBtn.addEventListener("click", function () {
-        hint.classList.remove("visible");
-        try { localStorage.setItem("install-hint-dismissed", "1"); } catch (e) {}
-      });
-    }
-
     // ===== Init =====
     buildStationButtons();
-    initInstallHint();
   </script>
 
 </body>
