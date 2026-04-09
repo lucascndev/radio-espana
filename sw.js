@@ -1,7 +1,9 @@
-const CACHE_NAME = 'radio-espana-v2';
+const CACHE_NAME = 'radio-espana-v3';
 const ASSETS = [
   '/',
   '/index.html',
+  '/styles.css',
+  '/app.js',
   '/manifest.json',
   '/icon-152.png',
   '/icon-180.png',
