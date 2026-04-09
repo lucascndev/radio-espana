@@ -2,9 +2,9 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Escucha emisoras de radio españolas en directo. Interfaz sencilla y accesible.">
-  <meta name="theme-color" content="#1a5276">
+  <meta name="theme-color" content="#c60b1e">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Radio España">
@@ -13,6 +13,7 @@
   <link rel="apple-touch-icon" href="icon-180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="icon-152.png">
   <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+  <link rel="icon" type="image/svg+xml" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%23c60b1e"/><rect y="25" width="100" height="50" fill="%23ffc400"/><rect x="20" y="35" width="60" height="40" rx="6" fill="%231a1a1a"/><line x1="30" y1="35" x2="30" y2="10" stroke="%231a1a1a" stroke-width="5" stroke-linecap="round"/><circle cx="30" cy="10" r="4" fill="%231a1a1a"/><line x1="30" y1="45" x2="45" y2="45" stroke="%23ffc400" stroke-width="3" stroke-linecap="round"/><line x1="30" y1="53" x2="45" y2="53" stroke="%23ffc400" stroke-width="3" stroke-linecap="round"/><line x1="30" y1="61" x2="45" y2="61" stroke="%23ffc400" stroke-width="3" stroke-linecap="round"/><circle cx="65" cy="53" r="10" fill="%23c60b1e"/><circle cx="65" cy="53" r="3" fill="%23ffffff"/></svg>'>
   <title>Radio España</title>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
@@ -26,6 +27,7 @@
     html {
       font-size: 100%;
       -webkit-text-size-adjust: 100%;
+      overscroll-behavior: none;
     }
 
     body {
@@ -44,16 +46,26 @@
     /* ===== Header ===== */
     .app-header {
       width: 100%;
-      background-color: #1a5276;
+      background-color: #c60b1e;
+      border-bottom: 8px solid #ffc400;
       color: #ffffff;
       text-align: center;
       padding: 20px 16px;
       position: sticky;
       top: 0;
       z-index: 10;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
 
+    .digital-clock {
+      font-size: 3.2rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+      font-variant-numeric: tabular-nums;
+      color: #ffc400;
+      line-height: 1;
+    }
     .app-header h1 {
       font-size: 2rem;
       font-weight: 800;
@@ -66,6 +78,22 @@
       opacity: 0.85;
       font-weight: 400;
     }
+
+    /* ===== Offline Banner ===== */
+    #offline-banner {
+      display: none;
+      width: 100%;
+      background-color: #e74c3c;
+      color: white;
+      text-align: center;
+      padding: 12px;
+      font-weight: bold;
+      font-size: 1.2rem;
+      position: sticky;
+      top: 80px; /* roughly below header */
+      z-index: 9;
+    }
+    #offline-banner.visible { display: block; }
 
     /* ===== Main Content ===== */
     .station-list {
@@ -92,8 +120,6 @@
       border-radius: 16px;
       background-color: #ffffff;
       color: #1a1a1a;
-      font-size: 1.65rem;
-      font-weight: 700;
       text-align: left;
       cursor: pointer;
       transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
@@ -101,16 +127,23 @@
       user-select: none;
       -webkit-user-select: none;
       line-height: 1.3;
+      position: relative;
     }
 
-    .station-btn:hover {
-      background-color: #eaf2f8;
-      border-color: #1a5276;
+    .station-name {
+      font-size: 2rem; /* Increased size */
+      font-weight: 700;
+    }
+    .station-name span.star {
+      color: #c60b1e;
+      font-size: 0.8em;
+      margin-left: 8px;
     }
 
-    .station-btn:active {
-      transform: scale(0.97);
-    }
+    .station-btn:hover { background-color: #fff9e6; border-color: #c60b1e; }
+    .station-btn:active { transform: scale(0.93); /* Stronger haptic-like scale */ }
+    
+    .station-btn.disabled { opacity: 0.6; pointer-events: none; }
 
     .station-btn .station-logo {
       width: 64px;
@@ -128,32 +161,47 @@
     }
 
     .station-btn .status-text {
-      font-size: 1rem;
+      font-size: 1.25rem; /* Increased size */
       font-weight: 600;
       margin-top: 4px;
       opacity: 0;
       transition: opacity 0.2s ease;
     }
 
-    /* ===== Active / Playing State ===== */
+    /* ===== Playing State & Equalizer ===== */
     .station-btn.playing {
-      background-color: #1a5276;
+      background-color: #c60b1e;
       color: #ffffff;
-      border-color: #0e3a56;
-      box-shadow: 0 4px 16px rgba(26, 82, 118, 0.4);
+      border-color: #8a0715;
+      box-shadow: 0 6px 20px rgba(198, 11, 30, 0.4);
     }
+    .station-btn.playing:hover { background-color: #d11c2f; }
+    
+    /* Contrast fixed: strictly white */
+    .station-btn.playing .status-text { opacity: 1; color: #ffffff; }
+    .station-btn.playing .station-logo { background-color: rgba(255, 255, 255, 0.15); }
 
-    .station-btn.playing:hover {
-      background-color: #1f6091;
+    .playing-indicator {
+      display: none;
+      align-items: flex-end;
+      height: 18px;
+      gap: 4px;
+      margin-top: 6px;
     }
-
-    .station-btn.playing .status-text {
-      opacity: 1;
-      color: #a3d5ff;
+    .station-btn.playing .playing-indicator { display: flex; }
+    
+    .playing-indicator div {
+      width: 5px;
+      background: #ffffff;
+      animation: eq 0.8s ease-in-out infinite alternate;
     }
-
-    .station-btn.playing .station-logo {
-      background-color: rgba(255, 255, 255, 0.15);
+    .playing-indicator div:nth-child(1) { animation-delay: 0.1s; height: 10px; }
+    .playing-indicator div:nth-child(2) { animation-delay: 0.4s; height: 18px; }
+    .playing-indicator div:nth-child(3) { animation-delay: 0.0s; height: 14px; }
+    .playing-indicator div:nth-child(4) { animation-delay: 0.3s; height: 16px; }
+    @keyframes eq {
+      0% { height: 4px; }
+      100% { height: 18px; }
     }
 
     /* ===== Loading State ===== */
@@ -163,23 +211,78 @@
       border-color: #d4ac0d;
       box-shadow: 0 4px 12px rgba(212, 172, 13, 0.3);
     }
+    .station-btn.loading .status-text { opacity: 1; color: #6e5b00; }
 
-    .station-btn.loading .status-text {
-      opacity: 1;
-      color: #6e5b00;
-    }
-
-    /* ===== Stop Button ===== */
-    .stop-section {
+    /* ===== Stop / Bottom Section ===== */
+    .bottom-section {
       width: 100%;
       max-width: 600px;
-      padding: 20px 16px 28px;
       position: sticky;
       bottom: 0;
-      background: linear-gradient(to bottom, transparent, #f0f0f0 25%);
-      padding-top: 40px;
+      background: linear-gradient(to bottom, rgba(240,240,240,0.8), #f0f0f0 40%);
+      padding: 20px 16px 28px;
+      z-index: 10;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
     }
 
+    /* Volume Control */
+    .volume-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 20px;
+      background: #ffffff;
+      padding: 16px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .mute-btn {
+      background: none;
+      border: none;
+      font-size: 2.2rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 4px;
+      color: #c60b1e;
+    }
+    .volume-controls {
+      display: flex;
+      flex: 1;
+      justify-content: space-evenly;
+    }
+    .vol-btn {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      background: #c60b1e;
+      color: white;
+      font-size: 2.5rem;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    .vol-btn:active {
+      transform: scale(0.92);
+    }
+    .vol-indicator {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #1a1a1a;
+      min-width: 65px;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-variant-numeric: tabular-nums;
+    }
+    
+    /* Stop button */
     .stop-btn {
       display: flex;
       align-items: center;
@@ -187,29 +290,22 @@
       width: 100%;
       min-height: 100px;
       padding: 20px 16px;
-      border: 3px solid #6e1010;
+      border: 3px solid #000000;
       border-radius: 16px;
-      background-color: #922b21;
+      background-color: #1a1a1a;
       color: #ffffff;
-      font-size: 1.65rem;
+      font-size: 1.8rem;
       font-weight: 800;
       text-align: center;
       cursor: pointer;
       transition: background-color 0.2s ease, transform 0.1s ease;
-      box-shadow: 0 4px 12px rgba(146, 43, 33, 0.35);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
       user-select: none;
       -webkit-user-select: none;
       letter-spacing: 0.5px;
     }
-
-    .stop-btn:hover {
-      background-color: #b03a2e;
-    }
-
-    .stop-btn:active {
-      transform: scale(0.97);
-    }
-
+    .stop-btn:hover { background-color: #333333; }
+    .stop-btn:active { transform: scale(0.95); }
     .stop-btn.disabled {
       background-color: #bdc3c7;
       border-color: #a6acaf;
@@ -217,96 +313,101 @@
       box-shadow: none;
       cursor: default;
     }
+    .stop-btn.disabled:active { transform: none; }
 
-    .stop-btn.disabled:hover {
-      background-color: #bdc3c7;
-    }
-
-    .stop-btn.disabled:active {
-      transform: none;
-    }
-
-    /* ===== Error Banner ===== */
-    .error-banner {
+    /* ===== Error Modal ===== */
+    .error-modal {
       display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .error-modal.visible { display: flex; }
+    
+    .error-dialog {
+      background: #ffffff;
       width: 100%;
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 14px 20px;
-      background-color: #f9e79f;
-      color: #614a00;
-      font-size: 1.1rem;
-      font-weight: 600;
+      max-width: 400px;
+      border-radius: 20px;
+      padding: 32px 24px;
       text-align: center;
-      border-bottom: 2px solid #d4ac0d;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      border: 4px solid #e74c3c;
     }
-
-    .error-banner.visible {
-      display: block;
+    .error-message {
+      font-size: 1.5rem;
+      color: #c0392b;
+      font-weight: 700;
+      margin-bottom: 24px;
+      line-height: 1.4;
     }
-
-    /* ===== Accessibility: focus-visible outlines ===== */
-    .station-btn:focus-visible,
-    .stop-btn:focus-visible {
-      outline: 4px solid #f39c12;
-      outline-offset: 3px;
+    .retry-btn {
+      background: #c60b1e;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.6rem;
+      font-weight: bold;
+      padding: 16px 24px;
+      width: 100%;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(198, 11, 30, 0.3);
     }
+    .retry-btn:active { transform: scale(0.95); }
 
-    /* ===== Prevent body scroll bounce on iOS ===== */
-    html {
-      overscroll-behavior: none;
+    /* ===== Accessibility Focus ===== */
+    *:focus-visible {
+      outline: 4px solid #ffc400;
+      outline-offset: 4px;
     }
-
 
     /* ===== iPad / Tablet Layout ===== */
     @media (min-width: 768px) {
-      .app-header h1 {
-        font-size: 2.6rem;
-      }
+      .digital-clock { font-size: 4.5rem; margin-bottom: 12px; }
+      .app-header h1 { font-size: 2.6rem; }
+      .app-header p { font-size: 1.4rem; }
+      .station-list { max-width: 700px; padding: 32px 24px 0; gap: 20px; }
+      .station-btn { min-height: 140px; border-radius: 20px; padding: 24px 28px; gap: 24px; }
+      .station-btn .station-logo { width: 80px; height: 80px; border-radius: 14px; }
+      .station-name { font-size: 2.4rem; }
+      .station-btn .status-text { font-size: 1.4rem; margin-top: 8px; }
+      .bottom-section { max-width: 700px; padding: 24px 24px 36px; }
+      .vol-btn { width: 84px; height: 84px; font-size: 3.5rem; }
+      .vol-indicator { font-size: 2.4rem; min-width: 80px; }
+      .mute-btn { font-size: 3rem; }
+      .stop-btn { min-height: 120px; font-size: 2.2rem; border-radius: 20px; }
+    }
 
-      .app-header p {
-        font-size: 1.3rem;
-      }
-
+    /* Landscape Mode optimization */
+    @media (min-width: 768px) and (orientation: landscape) {
       .station-list {
-        max-width: 700px;
-        padding: 32px 24px 0;
-        gap: 20px;
+        max-width: 900px;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
       }
-
       .station-btn {
-        min-height: 140px;
-        font-size: 2rem;
-        border-radius: 20px;
-        padding: 24px 28px;
+        width: calc(50% - 10px);
+      }
+      .bottom-section {
+        max-width: 900px;
+        display: flex;
         gap: 20px;
+        align-items: center;
       }
-
-      .station-btn .station-logo {
-        width: 80px;
-        height: 80px;
-        border-radius: 14px;
+      .volume-container {
+        flex: 1;
+        margin-bottom: 0;
+        height: 120px; /* match stop btn height */
       }
-
-      .station-btn .status-text {
-        font-size: 1.15rem;
-        margin-top: 8px;
-      }
-
-      .stop-section {
-        max-width: 700px;
-        padding: 24px 24px 36px;
-      }
-
       .stop-btn {
-        min-height: 120px;
-        font-size: 2rem;
-        border-radius: 20px;
-      }
-
-
-      .error-banner {
-        font-size: 1.2rem;
+        flex: 1;
       }
     }
   </style>
@@ -314,12 +415,14 @@
 <body>
 
   <header class="app-header" role="banner">
+    <div id="digital-clock" class="digital-clock" aria-hidden="true">--:--</div>
     <h1>Radio en Directo</h1>
-    <p>Pulsa una emisora para escuchar</p>
+    <p id="header-subtitle">Pulsa una emisora para escuchar</p>
   </header>
 
-
-  <div id="error-banner" class="error-banner" role="alert" aria-live="polite"></div>
+  <div id="offline-banner" role="alert" aria-live="assertive">
+    ⚠️ No hay conexión a Internet
+  </div>
 
   <main class="station-list" role="main" aria-label="Lista de emisoras">
     <!-- Station buttons are generated by JavaScript -->
@@ -327,39 +430,167 @@
 
   <audio id="audio-player" preload="none"></audio>
 
-  <div class="stop-section">
-    <button
-      id="stop-btn"
-      class="stop-btn disabled"
-      type="button"
-      aria-label="Parar la radio"
-      disabled
-    >
-      PARAR / APAGAR
+  <div class="bottom-section">
+    <div class="volume-container" aria-label="Control de volumen">
+      <button id="mute-btn" class="mute-btn" aria-label="Silenciar"></button>
+      <div class="volume-controls">
+        <button id="vol-down-btn" class="vol-btn" aria-label="Bajar volumen">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+        <span id="vol-indicator" class="vol-indicator" aria-live="polite">100%</span>
+        <button id="vol-up-btn" class="vol-btn" aria-label="Subir volumen">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+      </div>
+    </div>
+
+    <button id="stop-btn" class="stop-btn disabled" type="button" aria-label="Parar la radio" disabled>
+      PARAR RADIO
     </button>
   </div>
 
+  <div id="error-modal" class="error-modal" role="dialog" aria-modal="true" aria-labelledby="error-msg">
+    <div class="error-dialog">
+      <div id="error-msg" class="error-message">No se pudo conectar.</div>
+      <button id="retry-btn" class="retry-btn">REINTENTAR</button>
+    </div>
+  </div>
+
   <script>
+    // ===== Digital Clock =====
+    function updateClock() {
+      const now = new Date();
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      document.getElementById('digital-clock').textContent = hours + ':' + minutes;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // ===== Service Worker Registration =====
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(err => {
+        console.log("SW Reg failed: ", err);
+      });
+    }
+
     // ===== Station Data =====
-    const STATIONS = [
-      { name: "Cadena SER",  url: "https://23603.live.streamtheworld.com/CADENASER.mp3", type: "audio/mpeg", logo: "logos/cadena_ser.png" },
-      { name: "COPE",        url: "https://flucast11-h-cloud.flumotion.com/cope/net1.mp3", type: "audio/mpeg", logo: "logos/cope.png" },
-      { name: "Radio MARCA", url: "https://sonic.mediatelekom.net/9316/stream", type: "audio/mpeg", logo: "logos/marca.png" },
-      { name: "Onda Cero",   url: "https://atres-live.ondacero.es/live/ondacero/bitrate_1.m3u8", type: "application/vnd.apple.mpegurl", logo: "logos/ondacero.svg" },
-      { name: "RNE Radio 1", url: "https://dispatcher.rndfnk.com/crtve/rne1/main/mp3/high", type: "audio/mpeg", logo: "logos/rne.png" },
-      { name: "Los 40",      url: "https://25693.live.streamtheworld.com/LOS40AAC_SC", type: "audio/aac", logo: "logos/los40.png" },
+    let STATIONS = [
+      { id: 'cadenaser', name: "Cadena SER",  url: "https://23603.live.streamtheworld.com/CADENASER.mp3", type: "audio/mpeg", logo: "logos/cadena_ser.png" },
+      { id: 'cope', name: "COPE",        url: "https://flucast11-h-cloud.flumotion.com/cope/net1.mp3", type: "audio/mpeg", logo: "logos/cope.png" },
+      { id: 'marca', name: "Radio MARCA", url: "https://sonic.mediatelekom.net/9316/stream", type: "audio/mpeg", logo: "logos/marca.png" },
+      { id: 'ondacero', name: "Onda Cero",   url: "https://atres-live.ondacero.es/live/ondacero/bitrate_1.m3u8", type: "application/vnd.apple.mpegurl", logo: "logos/ondacero.svg" },
+      { id: 'rne', name: "RNE Radio 1", url: "https://dispatcher.rndfnk.com/crtve/rne1/main/mp3/high", type: "audio/mpeg", logo: "logos/RNE_2026.svg.png" },
+      { id: 'los40', name: "Los 40",      url: "https://25693.live.streamtheworld.com/LOS40AAC_SC", type: "audio/aac", logo: "logos/los40.png" },
     ];
+
+    // Read last played station from memory and sort it to the top
+    const lastPlayedId = localStorage.getItem("lastPlayedStationId");
+    if (lastPlayedId) {
+      const idx = STATIONS.findIndex(s => s.id === lastPlayedId);
+      if (idx > -1) {
+        const fav = STATIONS.splice(idx, 1)[0];
+        STATIONS.unshift(fav); // Move to the top
+        fav.isFav = true;
+      }
+    }
 
     // ===== State =====
     let currentIndex = -1;
     let buttons = [];
     let hlsInstance = null;
+    let isSwitching = false;
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
+    let retryTimeout = null;
 
     // ===== DOM References =====
     const audio = document.getElementById("audio-player");
     const stationList = document.querySelector(".station-list");
     const stopBtn = document.getElementById("stop-btn");
-    const errorBanner = document.getElementById("error-banner");
+    const headerSubtitle = document.getElementById("header-subtitle");
+    const offlineBanner = document.getElementById("offline-banner");
+    const errorModal = document.getElementById("error-modal");
+    const errorMsg = document.getElementById("error-msg");
+    const retryBtn = document.getElementById("retry-btn");
+    const volDownBtn = document.getElementById("vol-down-btn");
+    const volUpBtn = document.getElementById("vol-up-btn");
+    const muteBtn = document.getElementById("mute-btn");
+    const volIndicator = document.getElementById("vol-indicator");
+
+    // ===== Haptics =====
+    function triggerHaptic() {
+      if ("vibrate" in navigator) {
+        navigator.vibrate(50);
+      }
+    }
+
+    // ===== Connectivity Logic =====
+    window.addEventListener('online', () => offlineBanner.classList.remove("visible"));
+    window.addEventListener('offline', () => offlineBanner.classList.add("visible"));
+    if (!navigator.onLine) {
+      offlineBanner.classList.add("visible");
+    }
+
+    // ===== Volume Logic =====
+    let isMuted = false;
+    let previousVolume = 1;
+    
+    // Load saved volume if any
+    const savedVol = localStorage.getItem("userVolume");
+    if (savedVol !== null) {
+      audio.volume = parseFloat(savedVol);
+    } else {
+      audio.volume = 1;
+    }
+
+    function updateVolumeIcon() {
+      const svgBase = '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">';
+      if (audio.volume === 0 || isMuted) {
+        muteBtn.innerHTML = svgBase + '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>';
+        volIndicator.textContent = "0%";
+      } else {
+        if (audio.volume < 0.5) {
+          muteBtn.innerHTML = svgBase + '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>';
+        } else {
+          muteBtn.innerHTML = svgBase + '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>';
+        }
+        volIndicator.textContent = Math.round(audio.volume * 100) + "%";
+      }
+    }
+    updateVolumeIcon();
+
+    function saveVolume() {
+      isMuted = (audio.volume === 0);
+      updateVolumeIcon();
+      localStorage.setItem("userVolume", audio.volume);
+    }
+
+    volDownBtn.addEventListener('click', () => {
+      triggerHaptic();
+      audio.volume = Math.max(0, audio.volume - 0.1);
+      saveVolume();
+    });
+
+    volUpBtn.addEventListener('click', () => {
+      triggerHaptic();
+      audio.volume = Math.min(1, audio.volume + 0.1);
+      saveVolume();
+    });
+
+    muteBtn.addEventListener('click', () => {
+      triggerHaptic();
+      if (isMuted) {
+        audio.volume = previousVolume > 0 ? previousVolume : 1;
+        isMuted = false;
+      } else {
+        previousVolume = audio.volume;
+        audio.volume = 0;
+        isMuted = true;
+      }
+      updateVolumeIcon();
+      localStorage.setItem("userVolume", audio.volume);
+    });
 
     // ===== Build UI =====
     function buildStationButtons() {
@@ -369,14 +600,19 @@
         btn.className = "station-btn";
         btn.id = "station-" + index;
         btn.setAttribute("aria-label", "Escuchar " + station.name);
+        
+        const starHtml = station.isFav ? '<span class="star">⭐ Última vez</span>' : '';
+        
         btn.innerHTML =
-          '<img class="station-logo" src="' + station.logo + '" alt="' + station.name + '" width="64" height="64">' +
+          '<img class="station-logo" src="' + station.logo + '" alt="' + station.name + '">' +
           '<span class="station-text">' +
-            '<span class="station-name">' + station.name + '</span>' +
+            '<span class="station-name">' + station.name + starHtml + '</span>' +
             '<span class="status-text" aria-live="polite"></span>' +
+            '<div class="playing-indicator"><div></div><div></div><div></div><div></div></div>' +
           '</span>';
+        
         btn.addEventListener("click", function () {
-          playStation(index);
+          if (!isSwitching) playStation(index);
         });
         stationList.appendChild(btn);
         buttons.push(btn);
@@ -386,110 +622,142 @@
     // ===== Audio Event Listeners (attached once) =====
     audio.addEventListener("playing", function () {
       if (currentIndex < 0) return;
-      // Backup UI updater just in case standard playback triggers it normally
+      retryCount = 0; // reset retries on clear play
+      
       var btn = buttons[currentIndex];
       btn.classList.remove("loading");
       btn.classList.add("playing");
-      btn.querySelector(".status-text").textContent = "Reproduciendo...";
+      btn.querySelector(".status-text").textContent = "Sonando...";
+      headerSubtitle.textContent = "Escuchando: " + STATIONS[currentIndex].name;
       updateMediaSession(STATIONS[currentIndex].name);
     });
 
     audio.addEventListener("timeupdate", function () {
       if (currentIndex < 0) return;
       var btn = buttons[currentIndex];
-      // Fallback for native streams
       if (btn.classList.contains("loading") && !audio.paused && audio.currentTime > 0.5) {
         btn.classList.remove("loading");
         btn.classList.add("playing");
-        btn.querySelector(".status-text").textContent = "Reproduciendo...";
-        updateMediaSession(STATIONS[currentIndex].name);
+        btn.querySelector(".status-text").textContent = "Sonando...";
+        headerSubtitle.textContent = "Escuchando: " + STATIONS[currentIndex].name;
       }
     });
 
     audio.addEventListener("error", function () {
-      if (currentIndex < 0) return;
-      var name = STATIONS[currentIndex].name;
-      stopAudio();
-      resetAllButtons();
-      disableStopBtn();
-      showError("No se pudo conectar con " + name + ". Inténtelo de nuevo.");
+      handlePlayError("Error native");
     });
 
     // ===== Play a Station =====
     function playStation(index) {
-      // If the same station is already playing, do nothing
+      if (!navigator.onLine) {
+        offlineBanner.classList.add("visible");
+        return;
+      }
+
       if (index === currentIndex && !audio.paused) {
         return;
       }
 
-      // Stop any currently playing audio
-      stopAudio();
+      triggerHaptic();
 
-      // Clear previous errors
+      // Debounce logic
+      isSwitching = true;
+      buttons.forEach(b => b.classList.add("disabled"));
+      setTimeout(() => {
+        isSwitching = false;
+        buttons.forEach(b => b.classList.remove("disabled"));
+      }, 500);
+
+      stopAudioCore();
       hideError();
-
-      // Update button states — go straight to "playing" for instant feedback
       resetAllButtons();
-      var btn = buttons[index];
-      btn.classList.add("playing");
-      btn.querySelector(".status-text").textContent = "Reproduciendo...";
 
-      // Enable the stop button
+      var btn = buttons[index];
+      btn.classList.add("loading");
+      btn.querySelector(".status-text").textContent = "Conectando...";
+      headerSubtitle.textContent = "Conectando a " + STATIONS[index].name + "...";
+
       stopBtn.classList.remove("disabled");
       stopBtn.disabled = false;
 
-      // Set current index immediately
       currentIndex = index;
+      localStorage.setItem("lastPlayedStationId", STATIONS[index].id);
       updateMediaSession(STATIONS[index].name);
 
-      // Helper function to handle playback errors
-      function handlePlayError(err) {
-        console.error("Play error:", err);
-        stopAudio();
-        resetAllButtons();
-        disableStopBtn();
-        showError("No se pudo iniciar " + STATIONS[index].name + ". Inténtelo de nuevo.");
-      }
+      startStream(index);
+    }
 
-      // Configure audio source based on format
+    function startStream(index) {
       var station = STATIONS[index];
       
       while (audio.firstChild) { audio.removeChild(audio.firstChild); }
       audio.removeAttribute("src");
 
       if (station.url.endsWith(".m3u8") || station.type === "application/vnd.apple.mpegurl") {
-        // Handle HLS streams
         if (Hls.isSupported()) {
-          hlsInstance = new Hls();
+          hlsInstance = new Hls({ maxRetries: 0 }); // We handle retries manually
           hlsInstance.loadSource(station.url);
           hlsInstance.attachMedia(audio);
           hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
-            audio.play().catch(handlePlayError);
+            audio.play().catch(e => handlePlayError(e));
           });
           hlsInstance.on(Hls.Events.ERROR, function(event, data) {
             if (data.fatal) { handlePlayError(data); }
           });
         } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
-          // Fallback for native HLS support (e.g. Safari / iPad)
           audio.src = station.url;
           audio.load();
-          audio.play().catch(handlePlayError);
+          audio.play().catch(e => handlePlayError(e));
         } else {
-          handlePlayError("HLS no es compatible en este navegador.");
+          showError("Esta emisora no es compatible con su dispositivo.");
         }
       } else {
-        // Handle normal MP3/AAC streams
         var source = document.createElement("source");
         source.src = station.url;
         source.type = station.type;
         audio.appendChild(source);
         audio.load();
-        audio.play().catch(handlePlayError);
+        audio.play().catch(e => handlePlayError(e));
       }
     }
 
-    // ===== Stop Audio =====
-    function stopAudio() {
+    // Helper function to handle playback errors with retries
+    function handlePlayError(err) {
+      console.error("Play error:", err);
+      if (currentIndex < 0) return;
+      
+      if (!navigator.onLine) {
+        stopAudioCore();
+        resetAllButtons();
+        disableStopBtn();
+        return; // Handled by offline banner
+      }
+
+      if (retryCount < MAX_RETRIES) {
+        retryCount++;
+        var btn = buttons[currentIndex];
+        btn.classList.remove("playing");
+        btn.classList.add("loading");
+        btn.querySelector(".status-text").textContent = "Reconectando (" + retryCount + ")...";
+        headerSubtitle.textContent = "Intentando reconectar...";
+        
+        let backoffDelay = retryCount * 1500; // 1.5s, 3s, 4.5s
+        if (retryTimeout) clearTimeout(retryTimeout);
+        retryTimeout = setTimeout(() => {
+          if (currentIndex >= 0) startStream(currentIndex);
+        }, backoffDelay);
+      } else {
+        var name = STATIONS[currentIndex].name;
+        stopAudioCore();
+        resetAllButtons();
+        disableStopBtn();
+        showError("No se puede escuchar " + name + ". Compruebe su conexión y pulse Reintentar.");
+      }
+    }
+
+    // ===== Core Stop Audio (no UI resets) =====
+    function stopAudioCore() {
+      if (retryTimeout) clearTimeout(retryTimeout);
       audio.pause();
       if (hlsInstance) {
         hlsInstance.destroy();
@@ -497,10 +765,25 @@
       }
       while (audio.firstChild) { audio.removeChild(audio.firstChild); }
       audio.removeAttribute("src");
-      audio.load(); // Release the network connection
-      currentIndex = -1;
+      audio.load();
       clearMediaSession();
     }
+
+    // ===== Global Stop Action (User Initiated) =====
+    function stopHandling() {
+      triggerHaptic();
+      stopAudioCore();
+      resetAllButtons();
+      disableStopBtn();
+      hideError();
+      currentIndex = -1;
+      retryCount = 0;
+    }
+
+    stopBtn.addEventListener("click", function () {
+      if (stopBtn.disabled) return;
+      stopHandling();
+    });
 
     // ===== Reset Buttons =====
     function resetAllButtons() {
@@ -508,34 +791,34 @@
         btn.classList.remove("playing", "loading");
         btn.querySelector(".status-text").textContent = "";
       });
+      headerSubtitle.textContent = "Pulsa una emisora para escuchar";
     }
-
-    // ===== Stop Button Handler =====
-    stopBtn.addEventListener("click", function () {
-      if (stopBtn.disabled) return;
-      stopAudio();
-      resetAllButtons();
-      disableStopBtn();
-      hideError();
-    });
 
     function disableStopBtn() {
       stopBtn.classList.add("disabled");
       stopBtn.disabled = true;
     }
 
-    // ===== Error Handling =====
+    // ===== Error Handling UI =====
     function showError(message) {
-      errorBanner.textContent = message;
-      errorBanner.classList.add("visible");
+      errorMsg.textContent = message;
+      errorModal.classList.add("visible");
     }
 
     function hideError() {
-      errorBanner.textContent = "";
-      errorBanner.classList.remove("visible");
+      errorModal.classList.remove("visible");
     }
 
-    // ===== Media Session API (iOS Control Center / Lock Screen) =====
+    retryBtn.addEventListener("click", () => {
+      triggerHaptic();
+      hideError();
+      if (currentIndex >= 0) {
+        retryCount = 0;
+        playStation(currentIndex);
+      }
+    });
+
+    // ===== Media Session API =====
     function updateMediaSession(stationName) {
       if ("mediaSession" in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
@@ -553,19 +836,16 @@
         navigator.mediaSession.setActionHandler("pause", function () {
           if (!audio.paused) {
             audio.pause();
-            // Update button to show paused state
             var btn = buttons[currentIndex];
             if (btn) {
               btn.querySelector(".status-text").textContent = "En pausa";
+              btn.classList.remove("playing");
+              btn.classList.add("loading"); // reuse loading colors for paused logic visually if needed
             }
           }
         });
 
-        navigator.mediaSession.setActionHandler("stop", function () {
-          stopAudio();
-          resetAllButtons();
-          disableStopBtn();
-        });
+        navigator.mediaSession.setActionHandler("stop", stopHandling);
       }
     }
 
