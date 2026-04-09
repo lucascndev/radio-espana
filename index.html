@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="description" content="Escucha emisoras de radio españolas en directo. Interfaz sencilla y accesible.">
+  <meta name="theme-color" content="#1a5276">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Radio España">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icon-152.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+  <title>Radio España</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <style>
+    /* ===== Reset & Base ===== */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      font-size: 100%;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f0f0f0;
+      color: #1a1a1a;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ===== Header ===== */
+    .app-header {
+      width: 100%;
+      background-color: #1a5276;
+      color: #ffffff;
+      text-align: center;
+      padding: 20px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .app-header h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+
+    .app-header p {
+      font-size: 1.1rem;
+      margin-top: 4px;
+      opacity: 0.85;
+      font-weight: 400;
+    }
+
+    /* ===== Main Content ===== */
+    .station-list {
+      width: 100%;
+      max-width: 600px;
+      padding: 20px 16px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      flex: 1;
+    }
+
+    /* ===== Station Buttons ===== */
+    .station-btn {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 16px;
+      width: 100%;
+      min-height: 110px;
+      padding: 16px 20px;
+      border: 3px solid transparent;
+      border-radius: 16px;
+      background-color: #ffffff;
+      color: #1a1a1a;
+      font-size: 1.65rem;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+      transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      user-select: none;
+      -webkit-user-select: none;
+      line-height: 1.3;
+    }
+
+    .station-btn:hover {
+      background-color: #eaf2f8;
+      border-color: #1a5276;
+    }
+
+    .station-btn:active {
+      transform: scale(0.97);
+    }
+
+    .station-btn .station-logo {
+      width: 64px;
+      height: 64px;
+      border-radius: 12px;
+      object-fit: contain;
+      flex-shrink: 0;
+      background-color: #f5f5f5;
+    }
+
+    .station-btn .station-text {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .station-btn .status-text {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-top: 4px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    /* ===== Active / Playing State ===== */
+    .station-btn.playing {
+      background-color: #1a5276;
+      color: #ffffff;
+      border-color: #0e3a56;
+      box-shadow: 0 4px 16px rgba(26, 82, 118, 0.4);
+    }
+
+    .station-btn.playing:hover {
+      background-color: #1f6091;
+    }
+
+    .station-btn.playing .status-text {
+      opacity: 1;
+      color: #a3d5ff;
+    }
+
+    .station-btn.playing .station-logo {
+      background-color: rgba(255, 255, 255, 0.15);
+    }
+
+    /* ===== Loading State ===== */
+    .station-btn.loading {
+      background-color: #f7dc6f;
+      color: #1a1a1a;
+      border-color: #d4ac0d;
+      box-shadow: 0 4px 12px rgba(212, 172, 13, 0.3);
+    }
+
+    .station-btn.loading .status-text {
+      opacity: 1;
+      color: #6e5b00;
+    }
+
+    /* ===== Stop Button ===== */
+    .stop-section {
+      width: 100%;
+      max-width: 600px;
+      padding: 20px 16px 28px;
+      position: sticky;
+      bottom: 0;
+      background: linear-gradient(to bottom, transparent, #f0f0f0 25%);
+      padding-top: 40px;
+    }
+
+    .stop-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 100px;
+      padding: 20px 16px;
+      border: 3px solid #6e1010;
+      border-radius: 16px;
+      background-color: #922b21;
+      color: #ffffff;
+      font-size: 1.65rem;
+      font-weight: 800;
+      text-align: center;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+      box-shadow: 0 4px 12px rgba(146, 43, 33, 0.35);
+      user-select: none;
+      -webkit-user-select: none;
+      letter-spacing: 0.5px;
+    }
+
+    .stop-btn:hover {
+      background-color: #b03a2e;
+    }
+
+    .stop-btn:active {
+      transform: scale(0.97);
+    }
+
+    .stop-btn.disabled {
+      background-color: #bdc3c7;
+      border-color: #a6acaf;
+      color: #6c7a80;
+      box-shadow: none;
+      cursor: default;
+    }
+
+    .stop-btn.disabled:hover {
+      background-color: #bdc3c7;
+    }
+
+    .stop-btn.disabled:active {
+      transform: none;
+    }
+
+    /* ===== Error Banner ===== */
+    .error-banner {
+      display: none;
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 14px 20px;
+      background-color: #f9e79f;
+      color: #614a00;
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-align: center;
+      border-bottom: 2px solid #d4ac0d;
+    }
+
+    .error-banner.visible {
+      display: block;
+    }
+
+    /* ===== Accessibility: focus-visible outlines ===== */
+    .station-btn:focus-visible,
+    .stop-btn:focus-visible {
+      outline: 4px solid #f39c12;
+      outline-offset: 3px;
+    }
+
+    /* ===== Prevent body scroll bounce on iOS ===== */
+    html {
+      overscroll-behavior: none;
+    }
+
+    /* ===== Install Hint Banner ===== */
+    .install-hint {
+      display: none;
+      width: 100%;
+      background-color: #d5f5e3;
+      color: #1a5226;
+      text-align: center;
+      padding: 14px 48px 14px 20px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      line-height: 1.4;
+      border-bottom: 2px solid #82e0aa;
+      position: relative;
+    }
+
+    .install-hint.visible {
+      display: block;
+    }
+
+    .install-hint-close {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: 2px solid #1a5226;
+      border-radius: 8px;
+      color: #1a5226;
+      font-size: 1.3rem;
+      font-weight: 800;
+      width: 36px;
+      height: 36px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    /* ===== iPad / Tablet Layout ===== */
+    @media (min-width: 768px) {
+      .app-header h1 {
+        font-size: 2.6rem;
+      }
+
+      .app-header p {
+        font-size: 1.3rem;
+      }
+
+      .station-list {
+        max-width: 700px;
+        padding: 32px 24px 0;
+        gap: 20px;
+      }
+
+      .station-btn {
+        min-height: 140px;
+        font-size: 2rem;
+        border-radius: 20px;
+        padding: 24px 28px;
+        gap: 20px;
+      }
+
+      .station-btn .station-logo {
+        width: 80px;
+        height: 80px;
+        border-radius: 14px;
+      }
+
+      .station-btn .status-text {
+        font-size: 1.15rem;
+        margin-top: 8px;
+      }
+
+      .stop-section {
+        max-width: 700px;
+        padding: 24px 24px 36px;
+      }
+
+      .stop-btn {
+        min-height: 120px;
+        font-size: 2rem;
+        border-radius: 20px;
+      }
+
+      .install-hint {
+        font-size: 1.2rem;
+        padding: 18px 56px 18px 24px;
+      }
+
+      .error-banner {
+        font-size: 1.2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header" role="banner">
+    <h1>Radio en Directo</h1>
+    <p>Pulsa una emisora para escuchar</p>
+  </header>
+
+  <div id="install-hint" class="install-hint" role="note">
+    Para usar como app: pulsa <strong>Compartir</strong> y luego <strong>"Añadir a pantalla de inicio"</strong>
+    <button class="install-hint-close" id="install-hint-close" aria-label="Cerrar aviso" type="button">&times;</button>
+  </div>
+
+  <div id="error-banner" class="error-banner" role="alert" aria-live="polite"></div>
+
+  <main class="station-list" role="main" aria-label="Lista de emisoras">
+    <!-- Station buttons are generated by JavaScript -->
+  </main>
+
+  <audio id="audio-player" preload="none"></audio>
+
+  <div class="stop-section">
+    <button
+      id="stop-btn"
+      class="stop-btn disabled"
+      type="button"
+      aria-label="Parar la radio"
+      disabled
+    >
+      PARAR / APAGAR
+    </button>
+  </div>
+
+  <script>
+    // ===== Station Data =====
+    const STATIONS = [
+      { name: "Cadena SER",  url: "https://23603.live.streamtheworld.com/CADENASER.mp3", type: "audio/mpeg", logo: "logos/cadena_ser.png" },
+      { name: "COPE",        url: "https://flucast11-h-cloud.flumotion.com/cope/net1.mp3", type: "audio/mpeg", logo: "logos/cope.png" },
+      { name: "Radio MARCA", url: "https://sonic.mediatelekom.net/9316/stream", type: "audio/mpeg", logo: "logos/marca.png" },
+      { name: "Onda Cero",   url: "https://atres-live.ondacero.es/live/ondacero/bitrate_1.m3u8", type: "application/vnd.apple.mpegurl", logo: "logos/ondacero.svg" },
+      { name: "RNE Radio 1", url: "https://dispatcher.rndfnk.com/crtve/rne1/main/mp3/high", type: "audio/mpeg", logo: "logos/rne.png" },
+      { name: "Los 40",      url: "https://25693.live.streamtheworld.com/LOS40AAC_SC", type: "audio/aac", logo: "logos/los40.png" },
+    ];
+
+    // ===== State =====
+    let currentIndex = -1;
+    let buttons = [];
+    let hlsInstance = null;
+
+    // ===== DOM References =====
+    const audio = document.getElementById("audio-player");
+    const stationList = document.querySelector(".station-list");
+    const stopBtn = document.getElementById("stop-btn");
+    const errorBanner = document.getElementById("error-banner");
+
+    // ===== Build UI =====
+    function buildStationButtons() {
+      STATIONS.forEach((station, index) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "station-btn";
+        btn.id = "station-" + index;
+        btn.setAttribute("aria-label", "Escuchar " + station.name);
+        btn.innerHTML =
+          '<img class="station-logo" src="' + station.logo + '" alt="' + station.name + '" width="64" height="64">' +
+          '<span class="station-text">' +
+            '<span class="station-name">' + station.name + '</span>' +
+            '<span class="status-text" aria-live="polite"></span>' +
+          '</span>';
+        btn.addEventListener("click", function () {
+          playStation(index);
+        });
+        stationList.appendChild(btn);
+        buttons.push(btn);
+      });
+    }
+
+    // ===== Audio Event Listeners (attached once) =====
+    audio.addEventListener("playing", function () {
+      if (currentIndex < 0) return;
+      var btn = buttons[currentIndex];
+      btn.classList.remove("loading");
+      btn.classList.add("playing");
+      btn.querySelector(".status-text").textContent = "Reproduciendo...";
+      updateMediaSession(STATIONS[currentIndex].name);
+    });
+
+    audio.addEventListener("timeupdate", function () {
+      if (currentIndex < 0) return;
+      var btn = buttons[currentIndex];
+      // If the audio time is advancing, it is definitely playing.
+      // This catches edge cases where the browser forgets to fire 'playing'.
+      if (btn.classList.contains("loading") && !audio.paused && audio.currentTime > 0) {
+        btn.classList.remove("loading");
+        btn.classList.add("playing");
+        btn.querySelector(".status-text").textContent = "Reproduciendo...";
+        updateMediaSession(STATIONS[currentIndex].name);
+      }
+    });
+
+    audio.addEventListener("error", function () {
+      if (currentIndex < 0) return;
+      var name = STATIONS[currentIndex].name;
+      stopAudio();
+      resetAllButtons();
+      disableStopBtn();
+      showError("No se pudo conectar con " + name + ". Inténtelo de nuevo.");
+    });
+
+    // ===== Play a Station =====
+    function playStation(index) {
+      // If the same station is already playing, do nothing
+      if (index === currentIndex && !audio.paused) {
+        return;
+      }
+
+      // Stop any currently playing audio
+      stopAudio();
+
+      // Clear previous errors
+      hideError();
+
+      // Update button states
+      resetAllButtons();
+      var btn = buttons[index];
+      btn.classList.add("loading");
+      btn.querySelector(".status-text").textContent = "Cargando...";
+
+      // Enable the stop button
+      stopBtn.classList.remove("disabled");
+      stopBtn.disabled = false;
+
+      // Helper function to handle playback errors
+      function handlePlayError(err) {
+        console.error("Play error:", err);
+        stopAudio();
+        resetAllButtons();
+        disableStopBtn();
+        showError("No se pudo iniciar " + STATIONS[index].name + ". Inténtelo de nuevo.");
+      }
+
+      // Configure audio source based on format
+      var station = STATIONS[index];
+      
+      while (audio.firstChild) { audio.removeChild(audio.firstChild); }
+      audio.removeAttribute("src");
+
+      if (station.url.endsWith(".m3u8") || station.type === "application/vnd.apple.mpegurl") {
+        // Handle HLS streams
+        if (Hls.isSupported()) {
+          hlsInstance = new Hls();
+          hlsInstance.loadSource(station.url);
+          hlsInstance.attachMedia(audio);
+          hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+            audio.play().catch(handlePlayError);
+          });
+          hlsInstance.on(Hls.Events.ERROR, function(event, data) {
+            if (data.fatal) { handlePlayError(data); }
+          });
+        } else if (audio.canPlayType('application/vnd.apple.mpegurl')) {
+          // Fallback for native HLS support (e.g. Safari / iPad)
+          audio.src = station.url;
+          audio.load();
+          audio.play().catch(handlePlayError);
+        } else {
+          handlePlayError("HLS no es compatible en este navegador.");
+        }
+      } else {
+        // Handle normal MP3/AAC streams
+        var source = document.createElement("source");
+        source.src = station.url;
+        source.type = station.type;
+        audio.appendChild(source);
+        audio.load();
+        audio.play().catch(handlePlayError);
+      }
+    }
+
+    // ===== Stop Audio =====
+    function stopAudio() {
+      audio.pause();
+      if (hlsInstance) {
+        hlsInstance.destroy();
+        hlsInstance = null;
+      }
+      while (audio.firstChild) { audio.removeChild(audio.firstChild); }
+      audio.removeAttribute("src");
+      audio.load(); // Release the network connection
+      currentIndex = -1;
+      clearMediaSession();
+    }
+
+    // ===== Reset Buttons =====
+    function resetAllButtons() {
+      buttons.forEach(function (btn) {
+        btn.classList.remove("playing", "loading");
+        btn.querySelector(".status-text").textContent = "";
+      });
+    }
+
+    // ===== Stop Button Handler =====
+    stopBtn.addEventListener("click", function () {
+      if (stopBtn.disabled) return;
+      stopAudio();
+      resetAllButtons();
+      disableStopBtn();
+      hideError();
+    });
+
+    function disableStopBtn() {
+      stopBtn.classList.add("disabled");
+      stopBtn.disabled = true;
+    }
+
+    // ===== Error Handling =====
+    function showError(message) {
+      errorBanner.textContent = message;
+      errorBanner.classList.add("visible");
+    }
+
+    function hideError() {
+      errorBanner.textContent = "";
+      errorBanner.classList.remove("visible");
+    }
+
+    // ===== Media Session API (iOS Control Center / Lock Screen) =====
+    function updateMediaSession(stationName) {
+      if ("mediaSession" in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: stationName,
+          artist: "Radio en Directo",
+          album: "Radio España"
+        });
+
+        navigator.mediaSession.setActionHandler("play", function () {
+          if (audio.paused && currentIndex >= 0) {
+            audio.play();
+          }
+        });
+
+        navigator.mediaSession.setActionHandler("pause", function () {
+          if (!audio.paused) {
+            audio.pause();
+            // Update button to show paused state
+            var btn = buttons[currentIndex];
+            if (btn) {
+              btn.querySelector(".status-text").textContent = "En pausa";
+            }
+          }
+        });
+
+        navigator.mediaSession.setActionHandler("stop", function () {
+          stopAudio();
+          resetAllButtons();
+          disableStopBtn();
+        });
+      }
+    }
+
+    function clearMediaSession() {
+      if ("mediaSession" in navigator) {
+        navigator.mediaSession.metadata = null;
+        navigator.mediaSession.setActionHandler("play", null);
+        navigator.mediaSession.setActionHandler("pause", null);
+        navigator.mediaSession.setActionHandler("stop", null);
+      }
+    }
+
+    // ===== Install Hint (show only in Safari, not in standalone PWA) =====
+    function initInstallHint() {
+      var isStandalone = window.navigator.standalone === true ||
+                         window.matchMedia("(display-mode: standalone)").matches;
+      var isDismissed = false;
+      try { isDismissed = localStorage.getItem("install-hint-dismissed") === "1"; } catch (e) {}
+
+      var hint = document.getElementById("install-hint");
+      var closeBtn = document.getElementById("install-hint-close");
+
+      if (!isStandalone && !isDismissed) {
+        hint.classList.add("visible");
+      }
+
+      closeBtn.addEventListener("click", function () {
+        hint.classList.remove("visible");
+        try { localStorage.setItem("install-hint-dismissed", "1"); } catch (e) {}
+      });
+    }
+
+    // ===== Init =====
+    buildStationButtons();
+    initInstallHint();
+  </script>
+
+</body>
+</html>
