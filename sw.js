@@ -1,4 +1,4 @@
-const CACHE_NAME = 'radio-espana-v3';
+const CACHE_NAME = 'radio-espana-v4';
 const ASSETS = [
   '/',
   '/index.html',
