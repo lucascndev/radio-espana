@@ -467,7 +467,7 @@ async function fetchRealMadridNextMatch() {
       fetchHeaders = { "X-Auth-Token": FOOTBALL_DATA_API_KEY };
     } else {
       // In production (GitHub Pages), the GitHub Action silently generates this static JSON file to bypass CORS completely
-      fetchUrl = "data/schedule.json";
+      fetchUrl = "data/schedule.json?t=" + Date.now();
       fetchHeaders = {};
     }
 
