@@ -1,0 +1,37 @@
+name: Update Match Schedule
+
+on:
+  schedule:
+    - cron: '0 8,16 * * *' # Runs twice daily (8:00 AM and 4:00 PM UTC)
+  workflow_dispatch: # Allows manual trigger from the Actions tab
+
+jobs:
+  update-schedule:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed to commit the file back to the repository
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Fetch Real Madrid Schedule
+        run: |
+          mkdir -p data
+          curl -s -H "X-Auth-Token: ${{ secrets.FOOTBALL_API_KEY }}" \
+          "https://api.football-data.org/v4/teams/86/matches?status=SCHEDULED" > data/schedule.json
+          
+      - name: Validate JSON Output
+        run: |
+          if ! jq . data/schedule.json > /dev/null 2>&1; then
+            echo "Error: Invalid JSON received from API. Aborting."
+            exit 1
+          fi
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/schedule.json
+          # Only commit if there are changes
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: automated match schedule update" && git push)

@@ -458,9 +458,20 @@ async function fetchRealMadridNextMatch() {
       return;
     }
 
-    const response = await fetch("https://api.football-data.org/v4/teams/86/matches?status=SCHEDULED", {
-      headers: { "X-Auth-Token": FOOTBALL_DATA_API_KEY }
-    });
+    // If running logically on local dev, use direct API, otherwise fetch our GitHub Action generated data file.
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    
+    let fetchUrl, fetchHeaders;
+    if (isLocal) {
+      fetchUrl = "https://api.football-data.org/v4/teams/86/matches?status=SCHEDULED";
+      fetchHeaders = { "X-Auth-Token": FOOTBALL_DATA_API_KEY };
+    } else {
+      // In production (GitHub Pages), the GitHub Action silently generates this static JSON file to bypass CORS completely
+      fetchUrl = "data/schedule.json";
+      fetchHeaders = {};
+    }
+
+    const response = await fetch(fetchUrl, { headers: fetchHeaders });
 
     if (!response.ok) throw new Error("API request failed");
     
