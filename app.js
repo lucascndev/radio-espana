@@ -3,6 +3,7 @@ const VOLUME_STEP = 0.1;
 const DEBOUNCE_MS = 500;
 const MAX_RETRIES = 3;
 const RETRY_BACKOFF_MS = 1500;
+const FOOTBALL_DATA_API_KEY = "YOUR_API_KEY_HERE";
 
 const STATIONS = [
   { id: "cadenaser", name: "Cadena SER",  url: "https://23603.live.streamtheworld.com/CADENASER.mp3",           type: "audio/mpeg",                    logo: "logos/cadena_ser.png" },
@@ -412,6 +413,73 @@ function registerServiceWorker() {
   }
 }
 
+// ===== Real Madrid Match Ticker =====
+
+async function fetchRealMadridNextMatch() {
+  const tickerEl = document.getElementById("match-ticker");
+  if (!tickerEl) return;
+
+  const cacheKey = "real_madrid_next_match";
+  const cacheTimeKey = "real_madrid_next_match_time";
+  
+  // Custom Date formatter (Spanish)
+  const formatMatchDate = (isoString) => {
+    const d = new Date(isoString);
+    const options = { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' };
+    let formatted = d.toLocaleDateString("es-ES", options);
+    // Capitalize first letter of weekday
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  };
+
+  const renderTicker = (match) => {
+    const isHome = match.homeTeam.id === 86; // Real Madrid ID is 86
+    const opponent = isHome ? match.awayTeam.name : match.homeTeam.name;
+    const locationStr = isHome ? "Local" : "Visitante";
+    const compName = match.competition.name || "Partido";
+    
+    tickerEl.innerHTML = `
+      <div class="ticker-content">
+        <span class="ticker-comp">${compName}</span>
+        <span class="ticker-teams">Real Madrid vs ${opponent.replace(" CF", "").replace(" FC", "")}</span>
+        <span class="ticker-date">${formatMatchDate(match.utcDate)} (${locationStr})</span>
+      </div>
+    `;
+    tickerEl.classList.add("visible");
+  };
+
+  try {
+    const now = Date.now();
+    const cachedData = localStorage.getItem(cacheKey);
+    const cachedTime = localStorage.getItem(cacheTimeKey);
+
+    // Use cache if less than 24 hours (86400000 ms) old
+    if (cachedData && cachedTime && (now - parseInt(cachedTime)) < 86400000) {
+      renderTicker(JSON.parse(cachedData));
+      return;
+    }
+
+    const response = await fetch("https://api.football-data.org/v4/teams/86/matches?status=SCHEDULED", {
+      headers: { "X-Auth-Token": FOOTBALL_DATA_API_KEY }
+    });
+
+    if (!response.ok) throw new Error("API request failed");
+    
+    const data = await response.json();
+    if (data.matches && data.matches.length > 0) {
+      const nextMatch = data.matches[0];
+      
+      // Save cache
+      localStorage.setItem(cacheKey, JSON.stringify(nextMatch));
+      localStorage.setItem(cacheTimeKey, now.toString());
+      
+      renderTicker(nextMatch);
+    }
+  } catch (error) {
+    console.warn("Failed to fetch Real Madrid match schedule", error);
+    // Fail silently so we don't disrupt the radio app
+  }
+}
+
 // ===== Initialization =====
 
 function init() {
@@ -423,9 +491,12 @@ function init() {
   setInterval(updateClock, 1000);
 
   // Connectivity handlers
-  window.addEventListener("online", () => setOfflineVisible(false));
+  window.addEventListener("online", () => {
+    setOfflineVisible(false);
+    fetchRealMadridNextMatch(); // Try fetching again if we just came online
+  });
   window.addEventListener("offline", () => setOfflineVisible(true));
-  if (!navigator.onLine) setOfflineVisible(true);
+  if (!navigator.onLine) setOfflineVisible(true); else fetchRealMadridNextMatch();
 
   // Volume controls
   volDownBtn.addEventListener("click", () => adjustVolume(-VOLUME_STEP));

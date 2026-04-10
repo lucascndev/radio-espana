@@ -21,9 +21,14 @@
 <body>
 
   <header class="app-header" role="banner">
-    <div id="digital-clock" class="digital-clock" aria-hidden="true">--:--</div>
-    <h1>Radio en Directo</h1>
-    <p id="header-subtitle">Pulsa una emisora para escuchar</p>
+    <div class="header-inner">
+      <div class="header-titles">
+        <div id="digital-clock" class="digital-clock" aria-hidden="true">--:--</div>
+        <h1>Radio en Directo</h1>
+        <p id="header-subtitle">Pulsa una emisora para escuchar</p>
+      </div>
+      <div id="match-ticker" class="match-ticker" aria-live="polite"></div>
+    </div>
   </header>
 
   <div id="offline-banner" class="offline-banner" role="alert" aria-live="assertive">
