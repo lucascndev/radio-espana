@@ -7,7 +7,7 @@ const FOOTBALL_DATA_API_KEY = "YOUR_API_KEY_HERE";
 
 const STATIONS = [
   { id: "cadenaser", name: "Cadena SER",  url: "https://23603.live.streamtheworld.com/CADENASER.mp3",           type: "audio/mpeg",                    logo: "logos/cadena_ser.png" },
-  { id: "cope",      name: "COPE",        url: "https://flucast11-h-cloud.flumotion.com/cope/net1.mp3",         type: "audio/mpeg",                    logo: "logos/cope.png" },
+  { id: "cope",      name: "COPE",        url: "https://flucast11-h-cloud.flumotion.com/cope/net2.mp3",         type: "audio/mpeg",                    logo: "logos/cope.png" },
   { id: "marca",     name: "Radio MARCA", url: "https://sonic.mediatelekom.net/9316/stream",                    type: "audio/mpeg",                    logo: "logos/marca.png" },
   { id: "ondacero",  name: "Onda Cero",   url: "https://atres-live.ondacero.es/live/ondacero/bitrate_1.m3u8",   type: "application/vnd.apple.mpegurl", logo: "logos/ondacero.svg" },
   { id: "rne",       name: "RNE Radio 1", url: "https://dispatcher.rndfnk.com/crtve/rne1/main/mp3/high",       type: "audio/mpeg",                    logo: "logos/RNE_2026.svg.png" },
