@@ -1,1 +1,1 @@
-{"filters":{"competitions":"CL","permission":"TIER_ONE","status":["SCHEDULED"],"limit":100},"resultSet":{"count":0},"matches":[]}
+{"message":"The resource you are looking for is restricted and apparently not within your permissions. Please check your subscription.","errorCode":403}
